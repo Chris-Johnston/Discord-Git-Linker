@@ -1,7 +1,9 @@
 # config file
 # this should never be committed, this is where your connection token goes
 config.ini
+*config.ini*
 analytics.db
+*.db
 
 # course description files
 # these should be omitted because it's not my information and could
