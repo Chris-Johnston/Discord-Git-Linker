@@ -13,8 +13,8 @@ if __name__ == '__main__':
     config_file = 'config.ini'
 
     # use the first parameter if specified
-    if len(sys.argv) > 0:
-        config_file = sys.argv[0]
+    if len(sys.argv) > 1:
+        config_file = sys.argv[1]
 
     print(f'using the config file: {config_file}')
 
