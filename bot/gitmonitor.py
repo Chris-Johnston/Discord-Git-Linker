@@ -1,11 +1,23 @@
 import discord
 from discord.ext import commands
 import re
+import sqlite3
 
 class GitMonitor:
 
     def __init__(self, bot):
         self.bot = bot
+        self.database_file = 'userauth.db'
+        self.user_auth_db = sqlite3.connect(self.database_file, check_same_thread=False)
+
+        # make tables if they don't exist
+        c = self.user_auth_db.cursor()
+
+        c.execute('''CREATE TABLE IF NOT EXISTS github_tokens
+                    (userId UNSIGNED BIG INT,
+                    token TEXT)''')
+
+        self.user_auth_db.commit()
 
     async def on_command_error(self, ctx, error):
         # print('on command error')
@@ -54,7 +66,7 @@ class GitMonitor:
     @commands.command()
     async def authorize(self, ctx, github_token):
         """
-
+        Stores the github access token for a user
         :param github_access_token:
         :return:
         """
@@ -64,7 +76,35 @@ class GitMonitor:
             await ctx.send("Ok I'm storing your token associated with your user. If at any point you wish to revoke this access, use the ##revoke command, and invalidate your token here.")
             user_id = ctx.author.id
 
+            cur = self.user_auth_db.cursor()
+            to_insert = (user_id, github_token)
+            cur.execute('''INSERT OR REPLACE INTO github_tokens VALUES (?, ?);''', github_token)
+            self.user_auth_db.commit()
 
+    @commands.command()
+    async def revoke(self, ctx):
+        """
+        Revokes a user's github token
+        :param ctx:
+        :return:
+        """
+        await ctx.send("Ok, I've deleted your token. You should also revoke your token at <link>")
+        c = self.user_auth_db.cursor()
+        c.execute('''DELETE FROM github_tokens WHERE userId == ?;''', (ctx.author.id,))
+        self.user_auth_db.commit()
+
+    @commands.command()
+    async def link_channel(self, ctx, repo_url):
+        """
+        Associates a channel with a GitHub repo
+        valid syntax for the repo should be https://github.com/Chris-Johnston/CSSBot_Py
+
+        Maybe I should change that to be Chris-Johnston/CSSBot_Py , only the name and repo
+        :param ctx:
+        :param repo_url:
+        :return:
+        """
+        pass
 
 def setup(bot):
     bot.add_cog(GitMonitor(bot))
