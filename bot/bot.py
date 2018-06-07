@@ -34,6 +34,11 @@ if __name__ == '__main__':
             traceback.print_exc(file=sys.stderr)
 
 @client.event
+async def on_error(events, *args, **kwargs):
+    # print('error')
+    pass
+
+@client.event
 async def on_ready():
     # log when the client connects without error
     print(f'Logged in as {client.user.name} - {client.user.id} D.py version {discord.__version__}')
