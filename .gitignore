@@ -5,6 +5,8 @@ config.ini
 analytics.db
 *.db
 
+.pytest_cache/
+
 # course description files
 # these should be omitted because it's not my information and could
 # change depending on time

@@ -1,5 +1,6 @@
 import discord
-import discord.ext import commands
+from discord.ext import commands
+import re
 
 class GitMonitor:
 
@@ -22,8 +23,14 @@ class GitMonitor:
         #debug
         print(message.content)
 
+        for x in regex_matches_pr_or_issue(message.content):
+            print(f'PR/Issue {x.group()}')
+
+        for y in regex_matches_commit_hash(message.content):
+            print(f'commit {x.group()}')
+
         # if regex matches
-        # ##[0-9][0-9][0-9][0-9] ^
+        # ##[0-9][0-9][0-9][0-9] $
         # then use API to check if issue
         # or if PR
         # and then link to that
@@ -38,8 +45,8 @@ class GitMonitor:
         # check if that's a valid branch (again, or dont)
         # and link to that
 
-    @bot.command()
-    async def authorize(self, gh_login_username):
+    @commands.command()
+    async def authorize(self, github_access_token):
         """
         Authorizes this application to have access
         to the private repos on a user's github account.
@@ -179,5 +186,91 @@ class GitMonitor:
         """
         pass
 
+
 def setup(bot):
     bot.add_cog(GitMonitor(bot))
+
+
+def regex_matches_commit_hash(message: str) -> re:
+    """
+    Runs regex on the supplies message to see if the message contains a valid commit hash
+    reference format
+
+    ##b4effb604f0455d214995f700951b0b76aab9556
+    ##0a91b18f0fd5392279e3880cc1cc67f8391a0deb
+    ##261515f43b2b872f4760f5d9f21c4366d238a762
+    ##261515
+
+    >>> for x in regex_matches_commit_hash('##b4effb604f0455d214995f700951b0b76aab9556'): print(x is None)
+    False
+
+    >>> for x in regex_matches_commit_hash('##0a91b18f0fd5392279e3880cc1cc67f8391a0deb '): print(x is None)
+    False
+
+    >>> for x in regex_matches_commit_hash('message ##261515f43b2b872f4760f5d9f21c4366d238a762 message'): print(x is None)
+    False
+
+    >>> for x in regex_matches_commit_hash(' aa aa ##261515 !!!? ##261515aa !!? ##261515b '): print(x is None)
+    False
+    False
+    False
+
+    :param message:
+    :return:
+    """
+    expression = '##[a-zA-Z0-9]{5,40}( |$)'
+    e = re.compile(expression)
+    result = e.finditer(message)
+    return result
+
+
+def regex_matches_pr_or_issue(message: str) -> re:
+    """
+    Runs regex on the supplied message to see if the message contains
+    a PR reference format
+
+    Valid PR reference format is ##\d\d* .
+    This should match with
+
+    ##123
+    ##1
+    Message #1
+    #1 Message
+
+    >>> for x in regex_matches_pr_or_issue('##123 '): print(x is None)
+    False
+
+    >>> for x in regex_matches_pr_or_issue('#1'): print(x)
+
+    >>> for x in regex_matches_pr_or_issue('message #1'): print(x)
+
+    >>> for x in regex_matches_pr_or_issue(' #1 message'): print(x)
+
+    >>> for x in regex_matches_pr_or_issue('#123'): print(x)
+
+    >>> for x in regex_matches_pr_or_issue('Message##123'): print(x is None)
+    False
+
+    >>> for x in regex_matches_pr_or_issue('##ABC'): print(x)
+
+    >>> for x in regex_matches_pr_or_issue('##1A'): print(x)
+
+    >>> for x in regex_matches_pr_or_issue('##123'): print(x is None)
+    False
+
+    >>> for x in regex_matches_pr_or_issue('message ##123 Message? ##345 message!?'): print(x is None)
+    False
+    False
+
+    :param message: the message to check
+    :return:
+    """
+    expression = '##\d\d*( |$)'
+    e = re.compile(expression)
+    result = e.finditer(message)
+    return result
+
+# for testing
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
