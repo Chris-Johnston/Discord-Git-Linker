@@ -1,3 +1,6 @@
+# pycharm .idea folder is really annoying
+.idea/*
+
 # config file
 # this should never be committed, this is where your connection token goes
 config.ini
