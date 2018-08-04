@@ -2,7 +2,7 @@
 # from GitHub, and logging it on a per-user basis
 
 import requests
-from flask import Flask, request
+from flask import Flask, request, redirect
 import github
 import sqlite3
 import configparser
@@ -130,8 +130,27 @@ def code():
         # store the matching user id and access token in our
         # credentials db
         store_user_authorization_details(user.id, user.login, access_token)
+    else:
+        return 'something broke'
 
-    return 'OK'
+    return 'OK, you can close this window now'
+
+
+
+@app.route('/')
+@app.route('/login')
+def login():
+    # generate the oauth/authorize url\
+    request_parameters = {
+        'client_id': client_id,
+        'scopes': 'repo read:user'
+    }
+
+    req = requests.Request('GET', 'https://github.com/login/oauth/authorize',
+                           params=request_parameters)
+
+    # redirect to the github authorization page for the bot
+    return redirect(req.prepare().url, code=302)
 
 # use this only for testing
 if __name__ == '__main__':
