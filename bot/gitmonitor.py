@@ -13,14 +13,36 @@ class GitMonitor:
         # make tables if they don't exist
         c = self.user_auth_db.cursor()
 
+        # create the github_tokens table
+        # links a Discord user Id to a token
         c.execute('''CREATE TABLE IF NOT EXISTS github_tokens
                     (userId UNSIGNED BIG INT,
                     token TEXT)''')
 
+        # create the channel link table
+        # links channels to a github repo,
+        # has higher precedence than a guild repo
+
+        # channel Id is discord channel id
+        # authorUserId is discord user id
+        # created at is unix time when the link was made
+        # repo url is the path to the github repo
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS link_channels
+            ( channelId UNSIGNED BIG INT,
+              authorUserId UNSIGNED BIG INT,
+              createdAt INTEGER,
+              repoUrl TEXT
+              )
+              ''')
+
+        # create the guild link table
+        # links guilds to a github repo
+
         self.user_auth_db.commit()
 
     async def on_command_error(self, ctx, error):
-        # print('on command error')
+        print(f'Command error {error}')
         pass
 
     async def on_message(self, message):
@@ -71,9 +93,11 @@ class GitMonitor:
         :return:
         """
         if ctx.guild is not None:
-            await ctx.send("Don't use this command in a server, instead send it as DM to the bot. You can reset your token here.")
+            await ctx.send("Don't use this command in a server, instead send it as DM to the bot. " +
+                           "You can reset your token here.")
         else:
-            await ctx.send("Ok I'm storing your token associated with your user. If at any point you wish to revoke this access, use the ##revoke command, and invalidate your token here.")
+            await ctx.send("Ok I'm storing your token associated with your user. If at any point you wish to revoke" +
+                           " this access, use the ##revoke command, and invalidate your token here.")
             user_id = ctx.author.id
 
             cur = self.user_auth_db.cursor()
