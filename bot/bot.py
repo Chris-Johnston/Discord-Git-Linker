@@ -33,17 +33,17 @@ if __name__ == '__main__':
             print(f'Failed to load extension {e}', file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
 
-@client.event
-async def on_error(events, *args, **kwargs):
-    # print('error')
-    pass
+# @client.event
+# async def on_error(events, *args, **kwargs):
+#     print('error', events, args, kwargs)
+#     pass
 
 @client.event
 async def on_ready():
     # log when the client connects without error
     print(f'Logged in as {client.user.name} - {client.user.id} D.py version {discord.__version__}')
     # set the game status to give a help command
-    await client.change_presence(activity=discord.Game('##Help'))
+    await client.change_presence(status=discord.Status.online, activity=discord.Game(name='##Help'))
 
 # start the bot
 client.run(cfg['Configuration']['connection_token'], bot=True, reconnect=True)
