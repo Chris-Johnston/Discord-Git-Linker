@@ -1,3 +1,5 @@
+from typing import Union
+
 import discord
 from discord.ext import commands
 import re
@@ -20,22 +22,23 @@ class GitMonitor:
 
         # create the github_tokens table
         # links a Discord user Id to a token
-        c.execute('''CREATE TABLE IF NOT EXISTS github_tokens
-                    (userId UNSIGNED BIG INT,
-                    token TEXT)''')
+        c.execute("""CREATE TABLE IF NOT EXISTS userauth
+                    (id INT PRIMARY KEY,
+                    discordUserID TEXT,
+                    githubAuthorizationToken TEXT);""")
 
-        # table of login
         c.execute('''
-            CREATE TABLE IF NOT EXISTS
-            login
-            (
-            loginId INT PRIMARY KEY,
-            userId UNSIGNED BIG INT,
-            token TEXT,
-            expiration DATETIME
-            )
-        
-        ''')
+                    CREATE TABLE IF NOT EXISTS
+                    login
+                    (
+                    loginId INT PRIMARY KEY,
+                    discordUserID UNSIGNED BIG INT,
+                    token TEXT,
+                    expiration DATETIME
+                    )
+                
+                ''')
+
 
         # create the channel link table
         # links channels to a github repo,
@@ -47,7 +50,8 @@ class GitMonitor:
         # repo url is the path to the github repo
         c.execute('''
             CREATE TABLE IF NOT EXISTS link_channels
-            ( channelId UNSIGNED BIG INT,
+            ( guildId UNSIGNED BIG INT,
+              channelId UNSIGNED BIG INT,
               authorUserId UNSIGNED BIG INT,
               createdAt DATETIME,
               repoUrl TEXT
@@ -56,6 +60,16 @@ class GitMonitor:
 
         # create the guild link table
         # links guilds to a github repo
+        # or links to a specific author in a guild
+        c.execute('''
+                    CREATE TABLE IF NOT EXISTS link_guilds
+                    ( guildId UNSIGNED BIG INT,
+                      authorUserId UNSIGNED BIG INT,
+                      createdAt DATETIME,
+                      repoUrl TEXT,
+                      authorOnly INT
+                      )
+                      ''')
 
         self.user_auth_db.commit()
 
@@ -74,7 +88,7 @@ class GitMonitor:
         c = self.user_auth_db.cursor()
         c.execute(
             '''
-            DELETE FROM login WHERE userID = ?;
+            DELETE FROM login WHERE discordUserID = ?;
             ''',
             (userId, )
         )
@@ -82,7 +96,7 @@ class GitMonitor:
         # insert a new row into the login table
         c.execute(
             '''
-            INSERT INTO login (userId, token, expiration)
+            INSERT INTO login (discordUserID, token, expiration)
             VALUES (?, ?, ?);
             ''',
             (userId, token, expiration_time)
@@ -165,7 +179,7 @@ class GitMonitor:
                       f"You can check to see if you were authorized successfully with the `##me` command. '"
             await ctx.send(message)
 
-
+    #TODO: add unlink channel, guild, and me commands
 
     def get_github_repo_for_context(self, userId, channelId, guildId) -> str:
         """
@@ -175,20 +189,67 @@ class GitMonitor:
         :param guildId:
         :return:
         """
-        # todo
-        return 'Chris-Johnston/Easier68k'
+        print('getting gh repo for user', userId, 'channel', channelId, 'guild', guildId)
+        c = self.user_auth_db.cursor()
 
-    def get_authorization_for_context(self, userId: int) -> str:
+        # first get link_channel authored by current user
+        c.execute('''
+            SELECT repoUrl FROM link_channels
+            WHERE guildId = ? AND channelId = ? AND authorUserId = ?;
+        ''', (guildId, channelId, userId, ))
+        result = c.fetchone()
+        if result is not None:
+            return result[0]
+
+        # get link_channel
+        c.execute('''
+                    SELECT repoUrl FROM link_channels
+                    WHERE guildId = ? AND channelId = ?;
+                ''', (guildId, channelId, ))
+        result = c.fetchone()
+        if result is not None:
+            return result[0]
+
+        # ignore when channel id is 0
+        if guildId != 0:
+            # get link_me exclusive
+            c.execute('''
+                SELECT repoUrl FROM link_guilds
+                WHERE guildId = ? AND authorUserId = ? AND authorOnly = 1;
+                ''', (guildId, userId,))
+            result = c.fetchone()
+            if result is not None:
+                return result[0]
+
+            # get link_guild by user
+            c.execute('''
+                SELECT repoUrl FROM link_guilds
+                WHERE guildId = ? AND authorUserId = ? AND authorOnly = 0;
+                ''', (guildId, userId,))
+            result = c.fetchone()
+            if result is not None:
+                return result[0]
+
+        # get link_guild
+        c.execute('''
+            SELECT repoUrl FROM link_guilds
+            WHERE guildId = ? AND authorOnly = 0;
+            ''', (guildId, ))
+        result = c.fetchone()
+        if result is not None:
+            return result[0]
+
+    def get_authorization_for_context(self, user_id: int):
         """
         Gets the authorization for the user to log in
-        :param userId:
+        :param user_id:
         :return:
         """
         c = self.user_auth_db.cursor()
         # get the authorization token for the user
         c.execute(
             '''SELECT githubAuthorizationToken FROM userauth WHERE discordUserID = ?;
-            ''', (userId,))
+            ''', (user_id,))
         result = c.fetchone()
         if result is None:
             return None
@@ -227,8 +288,19 @@ class GitMonitor:
         # get repo for the context
         # todo fix the ids passed into get github repo for context
 
-        repo = self.get_github_repo_for_context(message.author.id, 0, 0)
-        auth = self.get_authorization_for_context(message.author.id)
+        author_id = message.author.id
+        channel_id = message.channel.id
+        guild_id = 0
+        if message.guild is not None:
+            guild_id = message.guild.id
+
+        repo = self.get_github_repo_for_context(author_id, channel_id, guild_id)
+
+        if repo is None:
+            print('couldnt find associated repo')
+            return
+
+        auth = self.get_authorization_for_context(author_id)
 
         if auth is None:
             # use no token
@@ -412,6 +484,79 @@ class GitMonitor:
 
         await ctx.send("Ok, I've deleted your token. You should also revoke your token at <link>")
 
+    def insert_guild(self, guild_id, user_id, repo_url, user_exclusive):
+        """
+        Removes existing bindings for a guild by this user that match by guild, user and exclusivity
+        inserts new bindings for the guild or user
+        :param guild_id:
+        :param channel_id:
+        :param user_id:
+        :param repo_url:
+        :param user_exclusive:
+        :return:
+        """
+        print('inserting into guild', guild_id, 'by user', user_id, 'url', repo_url, 'exclusive', user_exclusive)
+
+        c = self.user_auth_db.cursor()
+
+        # remove bindings for the guild matched to exclusivity
+        c.execute(
+            '''
+            DELETE FROM link_guilds
+            WHERE guildId = ? AND authorUserId = ? AND authorOnly = ?;
+            ''', (guild_id, user_id, user_exclusive, )
+        )
+
+        timenow = datetime.datetime.now()
+
+        # insert new bindings into this channel
+        c.execute(
+            '''
+            INSERT INTO link_guilds
+            ( guildId, authorUserId, createdAt, repoUrl, authorOnly)
+            VALUES 
+            (       ?,         ?,            ?,         ?,        ?);
+        ''', (guild_id, user_id, timenow, repo_url, user_exclusive, ))
+
+        self.user_auth_db.commit()
+        print('done')
+
+    def insert_channel(self, guild_id, channel_id, user_id, repo_url):
+        """
+        Removes existing bindings for this channel by this user
+        Inserts a new binding for this channel by this user
+        :param guild_id:
+        :param channel_id:
+        :param user_id:
+        :param repo_url:
+        :return:
+        """
+        print('inserting into channel', guild_id, 'by user', user_id, 'url', repo_url, 'channel', channel_id)
+        c = self.user_auth_db.cursor()
+
+        # remove existing bindings for this channel
+        c.execute(
+            '''
+            DELETE FROM link_channels
+            WHERE guildId = ? AND channelId = ?;
+            ''', (guild_id, channel_id, )
+        )
+
+        timenow = datetime.datetime.now()
+
+        # insert new bindings into this channel
+        c.execute(
+            '''
+            INSERT INTO link_channels
+            ( guildId, channelId, authorUserId, createdAt, repoUrl)
+            VALUES 
+            (       ?,         ?,            ?,         ?,        ?);
+        ''', (guild_id, channel_id, user_id, timenow, repo_url, ))
+
+        # save changes made to the database
+        self.user_auth_db.commit()
+        print('done')
+
     @commands.command()
     async def link_channel(self, ctx, repo_url):
         """
@@ -423,6 +568,11 @@ class GitMonitor:
         :param repo_url:
         :return:
         """
+
+        if ctx.guild is None:
+            print('only works in a guild, use link me')
+            await ctx.send('this only works in guild, use ##link_me instead')
+            return
 
         # check to see if the repo url is in the format
         # https://github.com/owner/repo
@@ -445,8 +595,6 @@ class GitMonitor:
             print(gh.oauth_scopes)
             try:
                 # try to get a repo of the current user
-                user = gh.get_user()
-
 
                 # if the repo starts with user login name
                 # then get their repo
@@ -469,11 +617,22 @@ class GitMonitor:
 
                 # r = gh.get_repo(repo_name)
                 await ctx.send(f'using the repo {r.html_url}')
+
+                # got the repo just fine, actually insert this into the database now
+
+                # insert into the database
+                self.insert_channel(ctx.guild.id, ctx.channel.id, ctx.author.id, repo_url)
+
             except UnknownObjectException as e:
                 print('unknown object', e)
 
     @commands.command()
     async def link_guild(self, ctx, repo_url):
+        if ctx.guild is None:
+            print('only works in a guild, use link me')
+            await ctx.send('this only works in guild, use ##link_me instead')
+            return
+
         print('link guild')
         repo_name = regex_get_repo_name_from_link(repo_url)
         if repo_name is not None:
@@ -490,12 +649,14 @@ class GitMonitor:
             try:
                 r = gh.get_repo(repo_name)
                 await ctx.send(f'using the repo {r.html_url}')
+                self.insert_guild(ctx.guild.id, ctx.author.id, repo_url, False)
             except UnknownObjectException:
                 print('unknown object')
         else:
             print('parse error')
 
-    async def link_user_only_this_guild(self, ctx, repo_url):
+    @commands.command()
+    async def link_me(self, ctx, repo_url):
         print('link user only this guild')
         repo_name = regex_get_repo_name_from_link(repo_url)
         if repo_name is not None:
@@ -512,6 +673,8 @@ class GitMonitor:
             try:
                 r = gh.get_repo(repo_name)
                 await ctx.send(f'using the repo {r.html_url}')
+
+                self.insert_guild(ctx.guild.id, ctx.author.id, repo_url, True)
             except UnknownObjectException:
                 print('unknown object')
 

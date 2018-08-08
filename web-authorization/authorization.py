@@ -48,9 +48,52 @@ def setup_user_auth_tables():
     """
     c = user_auth_db.cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS userauth
-            (id INT PRIMARY KEY,
-            discordUserID TEXT,
-            githubAuthorizationToken TEXT);""")
+                        (id INT PRIMARY KEY,
+                        discordUserID TEXT,
+                        githubAuthorizationToken TEXT);""")
+
+    c.execute('''
+                        CREATE TABLE IF NOT EXISTS
+                        login
+                        (
+                        loginId INT PRIMARY KEY,
+                        discordUserID UNSIGNED BIG INT,
+                        token TEXT,
+                        expiration DATETIME
+                        )
+
+                    ''')
+
+    # create the channel link table
+    # links channels to a github repo,
+    # has higher precedence than a guild repo
+
+    # channel Id is discord channel id
+    # authorUserId is discord user id
+    # created at is unix time when the link was made
+    # repo url is the path to the github repo
+    c.execute('''
+                CREATE TABLE IF NOT EXISTS link_channels
+                ( guildId UNSIGNED BIG INT,
+                  channelId UNSIGNED BIG INT,
+                  authorUserId UNSIGNED BIG INT,
+                  createdAt DATETIME,
+                  repoUrl TEXT
+                  )
+                  ''')
+
+    # create the guild link table
+    # links guilds to a github repo
+    # or links to a specific author in a guild
+    c.execute('''
+                        CREATE TABLE IF NOT EXISTS link_guilds
+                        ( guildId UNSIGNED BIG INT,
+                          authorUserId UNSIGNED BIG INT,
+                          createdAt DATETIME,
+                          repoUrl TEXT,
+                          authorOnly INT
+                          )
+                          ''')
     user_auth_db.commit()
 
 
@@ -71,7 +114,7 @@ def store_user_authorization_details(user_id, access_token):
 
     # insert into the table
     c.execute("""
-    INSERT OR REPLACE INTO userAuth
+    INSERT OR REPLACE INTO userauth
      (discordUserID, githubAuthorizationToken)
      VALUES
     (?, ?);""", (user_id, access_token))
@@ -116,7 +159,7 @@ def check_token(token: str) -> int:
 
     c.execute(
         '''
-        SELECT userId FROM login WHERE token = ? AND expiration >= ?;
+        SELECT discordUserID FROM login WHERE token = ? AND expiration >= ?;
         ''', (token, datetime.datetime.now()))
     result = c.fetchone()
     print('result', result)
