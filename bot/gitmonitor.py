@@ -17,62 +17,6 @@ class GitMonitor:
         self.auth_database_file = '../githublinker.db'
         self.user_auth_db = sqlite3.connect(self.auth_database_file, check_same_thread=False)
 
-        # make tables if they don't exist
-        c = self.user_auth_db.cursor()
-
-        # create the github_tokens table
-        # links a Discord user Id to a token
-        c.execute("""CREATE TABLE IF NOT EXISTS userauth
-                    (id INT PRIMARY KEY,
-                    discordUserID TEXT,
-                    githubAuthorizationToken TEXT);""")
-
-        c.execute('''
-                    CREATE TABLE IF NOT EXISTS
-                    login
-                    (
-                    loginId INT PRIMARY KEY,
-                    discordUserID UNSIGNED BIG INT,
-                    token TEXT,
-                    expiration DATETIME
-                    )
-                
-                ''')
-
-
-        # create the channel link table
-        # links channels to a github repo,
-        # has higher precedence than a guild repo
-
-        # channel Id is discord channel id
-        # authorUserId is discord user id
-        # created at is unix time when the link was made
-        # repo url is the path to the github repo
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS link_channels
-            ( guildId UNSIGNED BIG INT,
-              channelId UNSIGNED BIG INT,
-              authorUserId UNSIGNED BIG INT,
-              createdAt DATETIME,
-              repoUrl TEXT
-              )
-              ''')
-
-        # create the guild link table
-        # links guilds to a github repo
-        # or links to a specific author in a guild
-        c.execute('''
-                    CREATE TABLE IF NOT EXISTS link_guilds
-                    ( guildId UNSIGNED BIG INT,
-                      authorUserId UNSIGNED BIG INT,
-                      createdAt DATETIME,
-                      repoUrl TEXT,
-                      authorOnly INT
-                      )
-                      ''')
-
-        self.user_auth_db.commit()
-
     def get_user_login_token(self, userId: int) -> str:
         """
         Gets a user login token
