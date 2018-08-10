@@ -101,7 +101,7 @@ def check_token(token: str) -> int:
 
     c.execute(
         '''
-        SELECT discordUserID FROM login WHERE token = ? AND expiration >= ?;
+        SELECT DiscordUserId FROM UserLogin WHERE Token = ? AND Expiration >= ?;
         ''', (token, datetime.datetime.now()))
     result = c.fetchone()
     print('result', result)
@@ -109,7 +109,7 @@ def check_token(token: str) -> int:
     print('removing the token from the database')
 
     # delete all expired tokens, or all instances of this token
-    c.execute('''DELETE FROM login WHERE token = ? OR expiration >= ?;''', (token, datetime.datetime.now()))
+    c.execute('''DELETE FROM UserLogin WHERE Token = ? OR Expiration >= ?;''', (token, datetime.datetime.now()))
     user_auth_db.commit()
 
     print('deleted from db')

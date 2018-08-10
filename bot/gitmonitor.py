@@ -32,7 +32,7 @@ class GitMonitor:
         c = self.user_auth_db.cursor()
         c.execute(
             '''
-            DELETE FROM login WHERE discordUserID = ?;
+            DELETE FROM UserLogin WHERE DiscordUserId = ?;
             ''',
             (userId, )
         )
@@ -40,7 +40,7 @@ class GitMonitor:
         # insert a new row into the login table
         c.execute(
             '''
-            INSERT INTO login (discordUserID, token, expiration)
+            INSERT INTO UserLogin (DiscordUserId, Token, Expiration)
             VALUES (?, ?, ?);
             ''',
             (userId, token, expiration_time)
@@ -138,8 +138,8 @@ class GitMonitor:
 
         # first get link_channel authored by current user
         c.execute('''
-            SELECT repoUrl FROM link_channels
-            WHERE guildId = ? AND channelId = ? AND authorUserId = ?;
+            SELECT RepoName FROM LinkChannels
+            WHERE GuildId = ? AND ChannelId = ? AND AuthorDiscordUserId = ?;
         ''', (guildId, channelId, userId, ))
         result = c.fetchone()
         if result is not None:
@@ -147,8 +147,8 @@ class GitMonitor:
 
         # get link_channel
         c.execute('''
-                    SELECT repoUrl FROM link_channels
-                    WHERE guildId = ? AND channelId = ?;
+                    SELECT RepoName FROM LinkChannels
+                    WHERE GuildId = ? AND ChannelId = ?;
                 ''', (guildId, channelId, ))
         result = c.fetchone()
         if result is not None:
@@ -158,8 +158,8 @@ class GitMonitor:
         if guildId != 0:
             # get link_me exclusive
             c.execute('''
-                SELECT repoUrl FROM link_guilds
-                WHERE guildId = ? AND authorUserId = ? AND authorOnly = 1;
+                SELECT RepoName FROM LinkGuilds
+                WHERE GuildId = ? AND AuthorDiscordUserId = ? AND AuthorOnly = 1;
                 ''', (guildId, userId,))
             result = c.fetchone()
             if result is not None:
@@ -167,8 +167,8 @@ class GitMonitor:
 
             # get link_guild by user
             c.execute('''
-                SELECT repoUrl FROM link_guilds
-                WHERE guildId = ? AND authorUserId = ? AND authorOnly = 0;
+                SELECT RepoName FROM LinkGuilds
+                WHERE GuildId = ? AND AuthorDiscordUserId = ? AND AuthorOnly = 0;
                 ''', (guildId, userId,))
             result = c.fetchone()
             if result is not None:
@@ -176,8 +176,8 @@ class GitMonitor:
 
         # get link_guild
         c.execute('''
-            SELECT repoUrl FROM link_guilds
-            WHERE guildId = ? AND authorOnly = 0;
+            SELECT RepoName FROM LinkGuilds
+            WHERE GuildId = ? AND AuthorOnly = 0;
             ''', (guildId, ))
         result = c.fetchone()
         if result is not None:
@@ -192,7 +192,7 @@ class GitMonitor:
         c = self.user_auth_db.cursor()
         # get the authorization token for the user
         c.execute(
-            '''SELECT githubAuthorizationToken FROM userauth WHERE discordUserID = ?;
+            '''SELECT GithubAuthorizationToken FROM UserGithubAuthorization WHERE DiscordUserId = ?;
             ''', (user_id,))
         result = c.fetchone()
         if result is None:
@@ -411,7 +411,10 @@ class GitMonitor:
 
             cur = self.user_auth_db.cursor()
             to_insert = (user_id, github_token)
-            cur.execute('''INSERT OR REPLACE INTO github_tokens VALUES (?, ?);''', github_token)
+            cur.execute('''
+                INSERT OR REPLACE INTO UserGithubAuthorization
+                (DiscordUserId, GithubAuthorizationToken) 
+                VALUES (?, ?);''', to_insert)
             self.user_auth_db.commit()
 
     @commands.command()
@@ -423,7 +426,7 @@ class GitMonitor:
         """
 
         c = self.user_auth_db.cursor()
-        c.execute('''DELETE FROM userauth WHERE discordUserID == ?;''', (ctx.author.id,))
+        c.execute('''DELETE FROM UserGithubAuthorization WHERE DiscordUserId == ?;''', (ctx.author.id,))
         self.user_auth_db.commit()
 
         await ctx.send("Ok, I've deleted your token. You should also revoke your token at <link>")
@@ -446,8 +449,8 @@ class GitMonitor:
         # remove bindings for the guild matched to exclusivity
         c.execute(
             '''
-            DELETE FROM link_guilds
-            WHERE guildId = ? AND authorUserId = ? AND authorOnly = ?;
+            DELETE FROM LinkGuilds
+            WHERE GuildId = ? AND AuthorDiscordUserId = ? AND AuthorOnly = ?;
             ''', (guild_id, user_id, user_exclusive, )
         )
 
@@ -456,8 +459,8 @@ class GitMonitor:
         # insert new bindings into this channel
         c.execute(
             '''
-            INSERT INTO link_guilds
-            ( guildId, authorUserId, createdAt, repoUrl, authorOnly)
+            INSERT INTO LinkGuilds
+            (GuildId, AuthorDiscordUserId, CreatedAt, RepoName, AuthorOnly)
             VALUES 
             (       ?,         ?,            ?,         ?,        ?);
         ''', (guild_id, user_id, timenow, repo_url, user_exclusive, ))
@@ -481,8 +484,8 @@ class GitMonitor:
         # remove existing bindings for this channel
         c.execute(
             '''
-            DELETE FROM link_channels
-            WHERE guildId = ? AND channelId = ?;
+            DELETE FROM LinkChannels
+            WHERE GuildId = ? AND ChannelId = ?;
             ''', (guild_id, channel_id, )
         )
 
@@ -491,8 +494,8 @@ class GitMonitor:
         # insert new bindings into this channel
         c.execute(
             '''
-            INSERT INTO link_channels
-            ( guildId, channelId, authorUserId, createdAt, repoUrl)
+            INSERT INTO LinkChannels
+            (GuildId, ChannelId, AuthorDiscordUserId, CreatedAt, RepoName)
             VALUES 
             (       ?,         ?,            ?,         ?,        ?);
         ''', (guild_id, channel_id, user_id, timenow, repo_url, ))
