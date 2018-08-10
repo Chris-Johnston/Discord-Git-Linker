@@ -421,15 +421,24 @@ class GitMonitor:
     async def revoke(self, ctx):
         """
         Revokes a user's github token
+         and removes all of the links that have been made by that user
         :param ctx:
         :return:
         """
 
         c = self.user_auth_db.cursor()
-        c.execute('''DELETE FROM UserGithubAuthorization WHERE DiscordUserId == ?;''', (ctx.author.id,))
+        c.execute('''DELETE FROM UserGithubAuthorization WHERE DiscordUserId = ?;''', (ctx.author.id,))
+        # delete all of the channel links
+        c.execute(
+            '''DELETE FROM LinkChannels WHERE AuthorDiscordUserId = ?;''', (ctx.author.id, ))
+        # and the guild links
+        c.execute(
+            '''DELETE FROM LinkGuilds WHERE AuthorDiscordUserId = ?;''', (ctx.author.id,))
+
         self.user_auth_db.commit()
 
-        await ctx.send("Ok, I've deleted your token. You should also revoke your token at <link>")
+        await ctx.send("Ok, I've deleted your token and revoked all of your links." +
+                       " You should also revoke your token at <link>")
 
     def insert_guild(self, guild_id, user_id, repo_url, user_exclusive):
         """
@@ -503,6 +512,56 @@ class GitMonitor:
         # save changes made to the database
         self.user_auth_db.commit()
         print('done')
+
+    @commands.command()
+    async def unlink_guild(self, ctx):
+        """
+        Unlinks all of the links made by the author in a guild
+        :param ctx:
+        :return:
+        """
+        # only works in guild
+        if ctx.guild is None:
+            return
+
+    @commands.command()
+    async def unlink_me(self, ctx):
+        """
+        Unlinks the user's links in the current channel
+        :param ctx:
+        :return:
+        """
+
+    @commands.command()
+    async def unlink_channel(self, ctx):
+        """
+        Unlinks a channel.
+        :param ctx:
+        :return:
+        """
+        # only works in guild
+        if ctx.guild is None:
+            return
+
+        # todo enforce permissions requirements
+        # only manage channel link and unlink channels
+
+        # remove based on channel id match
+        # don't care about who does
+        guild_id = ctx.guild.id
+        channel_id = ctx.channel.id
+
+        c = self.user_auth_db.cursor()
+
+        c.execute(
+            '''DELETE FROM LinkChannels 
+            WHERE GuildId = ? AND ChannelId = ?;''',
+            (guild_id, channel_id, )
+        )
+
+        self.user_auth_db.commit()
+
+        c.close()
 
     @commands.command()
     async def link_channel(self, ctx, repo_url):
