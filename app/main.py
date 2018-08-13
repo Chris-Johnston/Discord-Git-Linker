@@ -56,38 +56,14 @@ def store_user_authorization_details(user_id, access_token):
 
     # insert into the table
     c.execute("""
-    INSERT OR REPLACE INTO userauth
-     (discordUserID, githubAuthorizationToken)
+    INSERT OR REPLACE INTO UserGithubAuthorization
+     (DiscordUserId, GithubAuthorizationToken)
      VALUES
     (?, ?);""", (user_id, access_token))
 
     # commit the changes
     user_auth_db.commit()
 
-
-# def get_user_for_access_token(access_token: str):
-#     """
-#     Hits the GitHub api to get the user for a given access token
-#     :param access_token:
-#     :return:
-#     """
-#     # log into github with the given access_token
-#     gh = github.Github(login_or_token=access_token,
-#                        client_id=github_client_id,
-#                        client_secret=github_client_secret)
-#
-#     # get the current user
-#     current_user = gh.get_user()
-#
-#     return current_user
-
-@app.route('/discord/code')
-def discord_authorization_code():
-
-    code = request.args.get('code')
-
-    print('discord/code')
-    return ':ok_hand:'
 
 def check_token(token: str) -> int:
     """
