@@ -18,6 +18,6 @@ RUN python -m pip install -r /app/requirements.txt --trusted-host pypi.python.or
 ENV WEB_CONFIG_FILE_PATH /app/data/config.ini
 ENV WEB_DATABASE_FILE_PATH /app/data/database.db
 
-EXPOSE 80
+EXPOSE 5000
 
 # Let the uwsgi-nginx-flask app run
