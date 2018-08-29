@@ -31,11 +31,16 @@ class GitMonitor:
             config_file = sys.argv[1]
             database_file = sys.argv[2]
 
+        print(f'using the config file: {config_file} and database file: {database_file}')
+
         self.auth_database_file = database_file
 
         self.cfg = configparser.ConfigParser()
         with open(config_file) as c:
             self.cfg.read_file(c)
+
+        print(f'callback endpoint {self.cfg["Login"]["github_login_callback"]}')
+        print(f'redirect endpoint {self.cfg["Login"]["github_login_redirect"]}')
 
         self.user_auth_db = sqlite3.connect(self.auth_database_file, check_same_thread=False)
 
@@ -132,7 +137,6 @@ class GitMonitor:
 
             # print(f'generated the new token {token} for user {login_discord_user}')'
             gh_client_id = self.cfg['GitHub']['client_id']
-            print('a')
 
             revoke_url = f'https://github.com/settings/connections/applications/{gh_client_id}'
 
