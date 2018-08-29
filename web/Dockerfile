@@ -19,5 +19,6 @@ ENV WEB_CONFIG_FILE_PATH /app/data/config.ini
 ENV WEB_DATABASE_FILE_PATH /app/data/database.db
 
 EXPOSE 5000
+EXPOSE 80
 
 # Let the uwsgi-nginx-flask app run
