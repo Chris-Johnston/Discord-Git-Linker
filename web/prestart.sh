@@ -10,5 +10,5 @@ python3.6 setup_database.py /app/data/database.db
 echo "Finished setting up DB"
 
 ls -lR /app
-
-chmod 770 /app/data/database.db
+# HACK really need to fix this
+chmod 776 /app/data/database.db
