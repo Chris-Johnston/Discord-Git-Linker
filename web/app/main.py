@@ -205,4 +205,4 @@ def github_login():
 
 if __name__ == '__main__':
     # To be used for debugging purposes
-    app.run(host='0.0.0.0', port=80)
+    app.run(host='0.0.0.0', port=5000)
