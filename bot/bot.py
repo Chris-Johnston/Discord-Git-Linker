@@ -4,6 +4,7 @@ import asyncio
 import configparser
 import sys
 import traceback
+import sqlite3
 
 client = commands.Bot(command_prefix='##',
                           description='A utility bot that connects to your GitHub account and links to connected Repos.')
@@ -11,12 +12,13 @@ client = commands.Bot(command_prefix='##',
 if __name__ == '__main__':
     # use the working directory
     config_file = 'config.ini'
-
+    database_file = 'database.db'
     # use the first parameter if specified
-    if len(sys.argv) > 1:
+    if len(sys.argv) > 2:
         config_file = sys.argv[1]
+        database_file = sys.argv[2]
 
-    print(f'using the config file: {config_file}')
+    print(f'using the config file: {config_file} and database file: {database_file}')
 
     # read the config file contents
     cfg = configparser.ConfigParser()

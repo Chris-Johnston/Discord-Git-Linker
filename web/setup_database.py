@@ -9,10 +9,12 @@ Accepts the path to the database file as the first argument.
 import sys
 import sqlite3
 
-if __name__ == '__main__':
 
+def setup(path: str):
     # get path as first arg value
-    db_path = sys.argv[1]
+    db_path = path
+
+    print(f'Database Path: {path}')
 
     # establish a connection to the db
     database = sqlite3.connect(db_path, check_same_thread=False)
@@ -58,7 +60,19 @@ if __name__ == '__main__':
          RepoName TEXT,
          AuthorOnly INT);''')
 
-    # close cursor when done
-    c.close()
     # commit changes to the db
     database.commit()
+    # close cursor when done
+    c.close()
+
+    # open up the cursor again
+    # and list all of the tables
+    cursor = database.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    print(cursor.fetchall())
+    cursor.close()
+
+if __name__ == '__main__':
+    print('Setting up the database.')
+    setup(sys.argv[1])
+    print('Done setting up database.')

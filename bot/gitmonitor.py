@@ -8,14 +8,41 @@ from github import Github, Repository, Issue, PullRequest, UnknownObjectExceptio
 import secrets
 import datetime
 import requests
+import sys
+import time
+import configparser
+
+startTime = time.time()
+
+
+async def only_dm(ctx):
+    return ctx.guild is None and isinstance(discord.DMChannel, ctx.channel)
+
 
 class GitMonitor:
 
     def __init__(self, bot):
         print('Setting up the Git Commands.')
         self.bot = bot
-        self.auth_database_file = '../githublinker.db'
+
+        config_file = '/app/data/config.ini'
+        database_file = '/app/data/database.db'
+        if len(sys.argv) > 2:
+            config_file = sys.argv[1]
+            database_file = sys.argv[2]
+
+        self.auth_database_file = database_file
+
+        self.cfg = configparser.ConfigParser()
+        with open(config_file) as c:
+            self.cfg.read_file(c)
+
         self.user_auth_db = sqlite3.connect(self.auth_database_file, check_same_thread=False)
+
+    @commands.command()
+    @commands.cooldown(5, 60, commands.BucketType.user)
+    async def ping(self, ctx):
+        await ctx.send(f'Pong! Uptime: {(time.time() - startTime)}')
 
     def get_user_login_token(self, userId: int) -> str:
         """
@@ -23,7 +50,7 @@ class GitMonitor:
         :param userId:
         :return:
         """
-        # generate a secret with 64 bytes
+        # generate a secret with 128 bytes
         token = secrets.token_urlsafe(128)
         # create an expiration time 5 minutes from now
         expiration_time = datetime.datetime.now() + datetime.timedelta(minutes=5)
@@ -55,9 +82,13 @@ class GitMonitor:
             'token': token
         }
 
-        return requests.Request('GET', 'http://localhost:5000/github/login', params=args).prepare().url
+        login_redirect = self.cfg['Login']['github_login_redirect']
+
+        return requests.Request('GET', login_redirect, params=args).prepare().url
 
     @commands.command()
+    @commands.bot_has_permissions(send_messages=True)
+    @commands.cooldown(5, 60, commands.BucketType.user)
     async def me(self, ctx):
         """
         Gets the connected GitHub account
@@ -73,9 +104,7 @@ class GitMonitor:
             g = Github(token)
             user = g.get_user().login
 
-            await ctx.send(f'you are logged in as **{user}**')
-
-
+            await ctx.send(f'You are logged in as github user **{user}**.')
 
     @commands.command()
     async def login(self, ctx):
@@ -84,9 +113,6 @@ class GitMonitor:
         :param ctx:
         :return:
         """
-        print('login')
-        print(ctx.guild)
-        print(type(ctx.channel))
         if ctx.guild is not None:
             try:
                 # try to DM the user
@@ -100,14 +126,15 @@ class GitMonitor:
                 # failed to send DM
                     await ctx.send('This command does not work in a server. DM the command to me.')
         elif isinstance(ctx.channel, discord.DMChannel):
-            print('aa')
             login_discord_user = ctx.author.id
             token = self.get_user_login_token(login_discord_user)
             url = self.get_login_url(token)
 
-            print(f'generated the new token {token} for user {login_discord_user}')
+            # print(f'generated the new token {token} for user {login_discord_user}')'
+            gh_client_id = self.cfg['GitHub']['client_id']
+            print('a')
 
-            revoke_url = f'https://github.com/settings/connections/applications/client id'
+            revoke_url = f'https://github.com/settings/connections/applications/{gh_client_id}'
 
             message = f"Here's your unique login url:\n" \
                       f'\n<{url}>\n\n' \
@@ -118,7 +145,7 @@ class GitMonitor:
                       f'\n\n' \
                       f'If you wish to invalidate this url, you may use the `##login` command again.\n\n' \
                       f"If you wish to revoke this application's access to your GitHub account, you may do so" \
-                      f"at the following link: {revoke_url}\n" \
+                      f" with the following link: {revoke_url}\n" \
                       f"" \
                       f"You can check to see if you were authorized successfully with the `##me` command. '"
             await ctx.send(message)
@@ -133,7 +160,7 @@ class GitMonitor:
         :param guildId:
         :return:
         """
-        print('getting gh repo for user', userId, 'channel', channelId, 'guild', guildId)
+        print('Getting gh repo for user', userId, 'channel', channelId, 'guild', guildId)
         c = self.user_auth_db.cursor()
 
         # first get link_channel authored by current user
@@ -199,8 +226,6 @@ class GitMonitor:
             return None
         # return the token for the user
         return result[0]
-
-
         # import configparser
         #
         # # read the config file contents
@@ -211,6 +236,7 @@ class GitMonitor:
 
     async def on_command_error(self, ctx, error):
         print(f'Command error {error}')
+        # do nothing, we are expecting many errors, so fail silently
         pass
 
     async def on_message(self, message):
@@ -226,12 +252,9 @@ class GitMonitor:
         :return:
         """
         if message.author.id == self.bot.user.id:
-            print('Message author was same as bot user id')
+            # print('Message author was same as bot user id')
             return
-
-        # get repo for the context
-        # todo fix the ids passed into get github repo for context
-
+        # get the repo for the context
         author_id = message.author.id
         channel_id = message.channel.id
         guild_id = 0
@@ -241,7 +264,7 @@ class GitMonitor:
         repo = self.get_github_repo_for_context(author_id, channel_id, guild_id)
 
         if repo is None:
-            print('couldnt find associated repo')
+            # print('couldnt find associated repo')
             return
 
         auth = self.get_authorization_for_context(author_id)
@@ -249,7 +272,7 @@ class GitMonitor:
         if auth is None:
             # use no token
             # this will be ratelimited and not have access to private repos
-            print('no auth token, may be rate limited')
+            # print('no auth token, may be rate limited')
             gh = Github()
         else:
             # login with the access token
@@ -259,34 +282,32 @@ class GitMonitor:
 
         use_embeds = True
 
-        #debug
-        print(message.content)
-
         for x in regex_matches_pr_or_issue(message.content):
             # trim off the ## leading
             num = x.group()[2:]
             # convert to an int
             num = int(num)
 
-            print(f'PR/Issue {num}')
+            # print(f'PR/Issue {num}')
 
             try:
                 # get the issue for the repo
                 issue = r.get_issue(num)
 
                 if issue is None:
-                    print('error')
+                    # print('error')
+                    pass
                 else:
                     if issue.pull_request is not None:
                         # pull request
                         pr = issue.as_pull_request()
-                        print('pull request', pr)
+                        # print('pull request', pr)
                         if use_embeds:
                             await self.send_pullrequest_embed(issue, pr, message.channel)
                         else:
                             await self.send_pullrequest_message(issue, pr, message.channel)
                     else:
-                        print('issue', issue)
+                        # print('issue', issue)
                         if use_embeds:
                             await self.send_issue_embed(issue, message.channel)
                         else:
@@ -298,11 +319,11 @@ class GitMonitor:
         for y in regex_matches_commit_hash(message.content):
             # trim off the ## leading
             hash = y.group()[2:]
-            print(f'commit {hash}')
+            # print(f'commit {hash}')
 
             commit = r.get_commit(hash)
             if commit is not None:
-                print('commit', commit)
+                # print('commit', commit)
                 if use_embeds:
                     await self.send_commit_embed(commit, message.channel)
                 else:
@@ -417,7 +438,8 @@ class GitMonitor:
                 VALUES (?, ?);''', to_insert)
             self.user_auth_db.commit()
 
-    @commands.command()
+    @commands.command(aliases=['logout', 'log-out', 'signout', 'sign-out'])
+    @commands.bot_has_permissions(send_messages=True)
     async def revoke(self, ctx):
         """
         Revokes a user's github token
@@ -451,7 +473,7 @@ class GitMonitor:
         :param user_exclusive:
         :return:
         """
-        print('inserting into guild', guild_id, 'by user', user_id, 'url', repo_url, 'exclusive', user_exclusive)
+        # print('inserting into guild', guild_id, 'by user', user_id, 'url', repo_url, 'exclusive', user_exclusive)
 
         c = self.user_auth_db.cursor()
 
@@ -475,7 +497,6 @@ class GitMonitor:
         ''', (guild_id, user_id, timenow, repo_url, user_exclusive, ))
 
         self.user_auth_db.commit()
-        print('done')
 
     def insert_channel(self, guild_id, channel_id, user_id, repo_url):
         """
@@ -487,7 +508,7 @@ class GitMonitor:
         :param repo_url:
         :return:
         """
-        print('inserting into channel', guild_id, 'by user', user_id, 'url', repo_url, 'channel', channel_id)
+        # print('inserting into channel', guild_id, 'by user', user_id, 'url', repo_url, 'channel', channel_id)
         c = self.user_auth_db.cursor()
 
         # remove existing bindings for this channel
@@ -511,8 +532,11 @@ class GitMonitor:
 
         # save changes made to the database
         self.user_auth_db.commit()
-        print('done')
+        # print('done')
 
+    @commands.guild_only()
+    @commands.has_permissions(manage_messsages=True)
+    @commands.bot_has_permissions(send_messages=True)
     @commands.command()
     async def unlink_guild(self, ctx):
         """
@@ -524,6 +548,7 @@ class GitMonitor:
         if ctx.guild is None:
             return
 
+    @commands.check(only_dm)
     @commands.command()
     async def unlink_me(self, ctx):
         """
@@ -531,7 +556,12 @@ class GitMonitor:
         :param ctx:
         :return:
         """
+        # works in guild and personal channels
 
+
+    @commands.guild_only()
+    @commands.has_permissions(manage_messsages=True)
+    @commands.bot_has_permissions(send_messages=True)
     @commands.command()
     async def unlink_channel(self, ctx):
         """
@@ -539,9 +569,6 @@ class GitMonitor:
         :param ctx:
         :return:
         """
-        # only works in guild
-        if ctx.guild is None:
-            return
 
         # todo enforce permissions requirements
         # only manage channel link and unlink channels
@@ -563,6 +590,10 @@ class GitMonitor:
 
         c.close()
 
+    @commands.guild_only()
+    @commands.has_permissions(manage_messsages=True)
+    @commands.bot_has_permissions(send_messages=True)
+    @commands.cooldown(5, 60, commands.BucketType.user)
     @commands.command()
     async def link_channel(self, ctx, repo_url):
         """
@@ -575,10 +606,10 @@ class GitMonitor:
         :return:
         """
 
-        if ctx.guild is None:
-            print('only works in a guild, use link me')
-            await ctx.send('this only works in guild, use ##link_me instead')
-            return
+        # if ctx.guild is None:
+        #     print('only works in a guild, use link me')
+        #     await ctx.send('this only works in guild, use ##link_me instead')
+        #     return
 
         # check to see if the repo url is in the format
         # https://github.com/owner/repo
@@ -586,40 +617,19 @@ class GitMonitor:
 
         repo_name = regex_get_repo_name_from_link(repo_url)
         if repo_name is not None:
-            print(f'using the repo name [{repo_name}]')
+            # print(f'using the repo name [{repo_name}]')
 
             auth = self.get_authorization_for_context(ctx.author.id)
 
             if auth is None:
-                print('not logged in')
-                await ctx.send('you need to be logged in to link a channel. see ##login')
+                await ctx.send('You need to be logged in to link a channel. See `##login`')
                 return
 
             # login with the access token
             gh = Github(auth)
-            # gh.oauth_scopes = ['repo', 'read:user']
-            print(gh.oauth_scopes)
             try:
                 # try to get a repo of the current user
-
-                # if the repo starts with user login name
-                # then get their repo
-                # if repo_name.startswith(user.login):
-                #     print('private repo')
-                #     repo_name = repo_name[len(user.login + '/'):]
-                #     print('private', repo_name)
-                #
-                #     print('collaborators', user.collaborators)
-                #     print('blog', user.blog)
-                #     print('pub')
-                #     for x in user.get_repos(type='all'):
-                #         print(x)
-                #
-                #     r = user.get_repo(repo_name)
-                # else:
                 r = gh.get_repo(repo_name)
-
-                print(r.html_url)
 
                 # r = gh.get_repo(repo_name)
                 await ctx.send(f'using the repo {r.html_url}')
@@ -630,59 +640,68 @@ class GitMonitor:
                 self.insert_channel(ctx.guild.id, ctx.channel.id, ctx.author.id, repo_url)
 
             except UnknownObjectException as e:
-                print('unknown object', e)
+                # the PR / commit / whatever wasn't found
+                pass
 
+    @commands.guild_only()
+    @commands.has_permissions(manage_messsages=True)
+    @commands.bot_has_permissions(send_messages=True)
+    @commands.cooldown(5, 60, commands.BucketType.user)
     @commands.command()
     async def link_guild(self, ctx, repo_url):
-        if ctx.guild is None:
-            print('only works in a guild, use link me')
-            await ctx.send('this only works in guild, use ##link_me instead')
-            return
-
-        print('link guild')
         repo_name = regex_get_repo_name_from_link(repo_url)
         if repo_name is not None:
-            print(f'using the repo name [{repo_name}]')
-
             auth = self.get_authorization_for_context(ctx.author.id)
             if auth is None:
-                print('not logged in')
-                await ctx.send('you need to be logged in to link')
+                await ctx.send('You need to be logged in to link a channel. See `##login`')
                 return
 
             # login with the access token
             gh = Github(auth)
             try:
                 r = gh.get_repo(repo_name)
-                await ctx.send(f'using the repo {r.html_url}')
+                await ctx.send(f'Ok! I\'m using the URL: {r.html_url}')
                 self.insert_guild(ctx.guild.id, ctx.author.id, repo_url, False)
             except UnknownObjectException:
-                print('unknown object')
+                # print('unknown object')
+                pass
         else:
-            print('parse error')
+            # print('parse error')
+            pass
 
+    @commands.check(only_dm)
+    @commands.cooldown(5, 60, commands.BucketType.user)
     @commands.command()
     async def link_me(self, ctx, repo_url):
-        print('link user only this guild')
         repo_name = regex_get_repo_name_from_link(repo_url)
         if repo_name is not None:
-            print(f'using the repo name [{repo_name}]')
+            # print(f'using the repo name [{repo_name}]')
 
             auth = self.get_authorization_for_context(ctx.author.id)
             if auth is None:
-                print('not logged in')
-                await ctx.send('you need to be logged in to link')
+                # print('not logged in')
+                await ctx.send('You need to be logged in to link a repo. See `##login`')
                 return
 
             # login with the access token
             gh = Github(auth)
             try:
                 r = gh.get_repo(repo_name)
-                await ctx.send(f'using the repo {r.html_url}')
+                await ctx.send(f'Ok! I\'m using the URL: {r.html_url}')
 
                 self.insert_guild(ctx.guild.id, ctx.author.id, repo_url, True)
             except UnknownObjectException:
-                print('unknown object')
+                # print('unknown object')
+                pass
+
+    @commands.command()
+    async def about(self, ctx):
+        await ctx.send('Discord-Git-Linker: https://github.com/Chris-Johnston/Discord-Git-Linker')
+
+    @commands.command()
+    async def invite(self, ctx):
+        invite_link = f'https://discordapp.com/oauth2/authorize?client_id={ctx.bot.user.id}&scope=bot&permissions=19456'
+        await ctx.send(f'Use this link to invite me to a server: {invite_link}')
 
 def setup(bot):
     bot.add_cog(GitMonitor(bot))
