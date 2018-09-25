@@ -16,6 +16,7 @@ import os.path
 startTime = time.time()
 
 async def check_manage_messages_or_admin(ctx):
+    return True
     perms = ctx.message.author.permissions_in(ctx.channel)
     return discord.Permissions.administrator in perms and discord.Permissions.manage_messages
 
