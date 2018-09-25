@@ -84,6 +84,7 @@ def check_token(token: str) -> int:
         ''', (token, datetime.datetime.now()))
     result = c.fetchone()
 
+    c = user_auth_db.cursor()
     # delete all expired tokens, or all instances of this token
     c.execute('''DELETE FROM UserLogin WHERE Token = ? OR Expiration >= ?;''', (token, datetime.datetime.now()))
     # save changes to the database
