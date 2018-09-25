@@ -705,14 +705,11 @@ class GitMonitor:
             # print('parse error')
             pass
 
-    @commands.check(only_dm)
     @commands.cooldown(5, 60, commands.BucketType.user)
     @commands.command()
     async def link_me(self, ctx, repo_url):
         repo_name = regex_get_repo_name_from_link(repo_url)
         if repo_name is not None:
-            # print(f'using the repo name [{repo_name}]')
-
             auth = self.get_authorization_for_context(ctx.author.id)
             if auth is None:
                 # print('not logged in')
