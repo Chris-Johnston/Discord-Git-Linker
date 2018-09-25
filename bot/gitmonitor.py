@@ -52,12 +52,13 @@ class GitMonitor:
         print(f'callback endpoint {self.cfg["Login"]["github_login_callback"]}')
         print(f'redirect endpoint {self.cfg["Login"]["github_login_redirect"]}')
 
-        self.user_auth_db = sqlite3.connect(self.auth_database_file, check_same_thread=False)
-
     @commands.command()
     @commands.cooldown(5, 60, commands.BucketType.user)
     async def ping(self, ctx):
         await ctx.send(f'Pong! Uptime: {(time.time() - startTime)}')
+
+    def db_connect(self):
+        return sqlite3.connect(self.auth_database_file, check_same_thread=False)
 
     def get_user_login_token(self, userId: int) -> str:
         """
@@ -71,7 +72,8 @@ class GitMonitor:
         expiration_time = datetime.datetime.now() + datetime.timedelta(minutes=5)
 
         # remove any existing login tokens from the table
-        c = self.user_auth_db.cursor()
+        user_auth_db = self.db_connect()
+        c = user_auth_db.cursor()
         c.execute(
             '''
             DELETE FROM UserLogin WHERE DiscordUserId = ?;
@@ -87,7 +89,8 @@ class GitMonitor:
             ''',
             (userId, token, expiration_time)
         )
-        self.user_auth_db.commit()
+        user_auth_db.commit()
+        user_auth_db.close()
 
         # return the token so that we can make the login url
         return token
@@ -175,7 +178,8 @@ class GitMonitor:
         :return:
         """
         print('Getting gh repo for user', userId, 'channel', channelId, 'guild', guildId)
-        c = self.user_auth_db.cursor()
+        user_auth_db = self.db_connect()
+        c = user_auth_db.cursor()
 
         # first get link_channel authored by current user
         c.execute('''
@@ -184,6 +188,7 @@ class GitMonitor:
         ''', (guildId, channelId, userId, ))
         result = c.fetchone()
         if result is not None:
+            user_auth_db.close()
             return result[0]
 
         # get link_channel
@@ -193,6 +198,7 @@ class GitMonitor:
                 ''', (guildId, channelId, ))
         result = c.fetchone()
         if result is not None:
+            user_auth_db.close()
             return result[0]
 
         # ignore when channel id is 0
@@ -204,6 +210,7 @@ class GitMonitor:
                 ''', (guildId, userId,))
             result = c.fetchone()
             if result is not None:
+                user_auth_db.close()
                 return result[0]
 
             # get link_guild by user
@@ -213,6 +220,7 @@ class GitMonitor:
                 ''', (guildId, userId,))
             result = c.fetchone()
             if result is not None:
+                user_auth_db.close()
                 return result[0]
 
         # get link_guild
@@ -222,6 +230,7 @@ class GitMonitor:
             ''', (guildId, ))
         result = c.fetchone()
         if result is not None:
+            user_auth_db.close()
             return result[0]
 
     def get_authorization_for_context(self, user_id: int):
@@ -230,12 +239,15 @@ class GitMonitor:
         :param user_id:
         :return:
         """
-        c = self.user_auth_db.cursor()
+        user_auth_db = self.db_connect()
+        c = user_auth_db.cursor()
+
         # get the authorization token for the user
         c.execute(
             '''SELECT GithubAuthorizationToken FROM UserGithubAuthorization WHERE DiscordUserId = ?;
             ''', (user_id,))
         result = c.fetchone()
+        user_auth_db.close()
         if result is None:
             return None
         # return the token for the user
@@ -443,14 +455,15 @@ class GitMonitor:
             await ctx.send("Ok I'm storing your token associated with your user. If at any point you wish to revoke" +
                            " this access, use the ##revoke command, and invalidate your token here.")
             user_id = ctx.author.id
-
-            cur = self.user_auth_db.cursor()
+            user_auth_db = self.db_connect()
+            cur = user_auth_db.cursor()
             to_insert = (user_id, github_token)
             cur.execute('''
                 INSERT OR REPLACE INTO UserGithubAuthorization
                 (DiscordUserId, GithubAuthorizationToken) 
                 VALUES (?, ?);''', to_insert)
-            self.user_auth_db.commit()
+            user_auth_db.commit()
+            user_auth_db.close()
 
     @commands.command(aliases=['logout', 'log-out', 'signout', 'sign-out'])
     @commands.bot_has_permissions(send_messages=True)
@@ -462,7 +475,8 @@ class GitMonitor:
         :return:
         """
 
-        c = self.user_auth_db.cursor()
+        user_auth_db = self.db_connect()
+        c = user_auth_db.cursor()
         c.execute('''DELETE FROM UserGithubAuthorization WHERE DiscordUserId = ?;''', (ctx.author.id,))
         # delete all of the channel links
         c.execute(
@@ -471,7 +485,8 @@ class GitMonitor:
         c.execute(
             '''DELETE FROM LinkGuilds WHERE AuthorDiscordUserId = ?;''', (ctx.author.id,))
 
-        self.user_auth_db.commit()
+        user_auth_db.commit()
+        user_auth_db.close()
 
         await ctx.send("Ok, I've deleted your token and revoked all of your links." +
                        " You should also revoke your token at <link>")
@@ -488,8 +503,8 @@ class GitMonitor:
         :return:
         """
         # print('inserting into guild', guild_id, 'by user', user_id, 'url', repo_url, 'exclusive', user_exclusive)
-
-        c = self.user_auth_db.cursor()
+        user_auth_db = self.db_connect()
+        c = user_auth_db.cursor()
 
         # remove bindings for the guild matched to exclusivity
         c.execute(
@@ -510,7 +525,8 @@ class GitMonitor:
             (       ?,         ?,            ?,         ?,        ?);
         ''', (guild_id, user_id, timenow, repo_url, user_exclusive, ))
 
-        self.user_auth_db.commit()
+        user_auth_db.commit()
+        user_auth_db.close()
 
     def insert_channel(self, guild_id, channel_id, user_id, repo_url):
         """
@@ -523,7 +539,8 @@ class GitMonitor:
         :return:
         """
         # print('inserting into channel', guild_id, 'by user', user_id, 'url', repo_url, 'channel', channel_id)
-        c = self.user_auth_db.cursor()
+        user_auth_db = self.db_connect()
+        c = user_auth_db.cursor()
 
         # remove existing bindings for this channel
         c.execute(
@@ -545,7 +562,8 @@ class GitMonitor:
         ''', (guild_id, channel_id, user_id, timenow, repo_url, ))
 
         # save changes made to the database
-        self.user_auth_db.commit()
+        user_auth_db.commit()
+        user_auth_db.close()
         # print('done')
 
     @commands.guild_only()
@@ -592,7 +610,8 @@ class GitMonitor:
         guild_id = ctx.guild.id
         channel_id = ctx.channel.id
 
-        c = self.user_auth_db.cursor()
+        user_auth_db = self.db_connect()
+        c = user_auth_db.cursor()
 
         c.execute(
             '''DELETE FROM LinkChannels 
@@ -600,9 +619,8 @@ class GitMonitor:
             (guild_id, channel_id, )
         )
 
-        self.user_auth_db.commit()
-
-        c.close()
+        user_auth_db.commit()
+        user_auth_db.close()
 
     @commands.guild_only()
     @commands.has_permissions(manage_messsages=True)
