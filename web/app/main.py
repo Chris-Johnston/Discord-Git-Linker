@@ -33,11 +33,11 @@ github_client_id = cfg['GitHub']['client_id']
 github_client_secret = cfg['GitHub']['client_secret']
 
 # establish a connection to the user auth db
-user_auth_db = sqlite3.connect(database_file, check_same_thread=False)
-cursor = user_auth_db.cursor()
-cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-print(cursor.fetchall())
-cursor.close()
+# user_auth_db = sqlite3.connect(database_file, check_same_thread=False)
+# cursor = user_auth_db.cursor()
+# cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+# print(cursor.fetchall())
+# user_auth_db.close()
 
 
 app = Flask(__name__)
@@ -50,6 +50,7 @@ def store_user_authorization_details(user_id: int, access_token: str):
     :param access_token: The user's GitHub access token.
     :return: None
     """
+    user_auth_db = sqlite3.connect(database_file, check_same_thread=False)
     c = user_auth_db.cursor()
 
     # insert into the table
@@ -61,6 +62,8 @@ def store_user_authorization_details(user_id: int, access_token: str):
 
     # commit the changes
     user_auth_db.commit()
+    user_auth_db.close()
+
 
 
 def check_token(token: str) -> int:
@@ -72,6 +75,7 @@ def check_token(token: str) -> int:
     :param token:
     :return: The DiscordUserId that owns this token, or None if invalid.
     """
+    user_auth_db = sqlite3.connect(database_file, check_same_thread=False)
     c = user_auth_db.cursor()
     # Fetch the first DiscordUserId for the given token as long as it isn't expired.
     c.execute(
@@ -84,6 +88,7 @@ def check_token(token: str) -> int:
     c.execute('''DELETE FROM UserLogin WHERE Token = ? OR Expiration >= ?;''', (token, datetime.datetime.now()))
     # save changes to the database
     user_auth_db.commit()
+    user_auth_db.close()
 
     # The token was expired or didn't exist, so no user could be found in the table
     # just return None
