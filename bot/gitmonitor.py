@@ -15,9 +15,12 @@ import os.path
 
 startTime = time.time()
 
+async def check_manage_messages_or_admin(ctx):
+    perms = ctx.message.author.permissions_in(ctx.channel)
+    return discord.Permissions.administrator in perms and discord.Permissions.manage_messages
 
 async def only_dm(ctx):
-    return ctx.guild is None and isinstance(discord.DMChannel, ctx.channel)
+    return ctx.guild is None and isinstance(ctx.channel, discord.DMChannel)
 
 
 class GitMonitor:
@@ -567,7 +570,7 @@ class GitMonitor:
         # print('done')
 
     @commands.guild_only()
-    @commands.has_permissions(manage_messsages=True)
+    @commands.check(check_manage_messages_or_admin)
     @commands.bot_has_permissions(send_messages=True)
     @commands.command()
     async def unlink_guild(self, ctx):
@@ -592,7 +595,7 @@ class GitMonitor:
 
 
     @commands.guild_only()
-    @commands.has_permissions(manage_messsages=True)
+    @commands.check(check_manage_messages_or_admin)
     @commands.bot_has_permissions(send_messages=True)
     @commands.command()
     async def unlink_channel(self, ctx):
@@ -623,7 +626,7 @@ class GitMonitor:
         user_auth_db.close()
 
     @commands.guild_only()
-    @commands.has_permissions(manage_messsages=True)
+    @commands.check(check_manage_messages_or_admin)
     @commands.bot_has_permissions(send_messages=True)
     @commands.cooldown(5, 60, commands.BucketType.user)
     @commands.command()
@@ -676,7 +679,7 @@ class GitMonitor:
                 pass
 
     @commands.guild_only()
-    @commands.has_permissions(manage_messsages=True)
+    @commands.check(check_manage_messages_or_admin)
     @commands.bot_has_permissions(send_messages=True)
     @commands.cooldown(5, 60, commands.BucketType.user)
     @commands.command()
