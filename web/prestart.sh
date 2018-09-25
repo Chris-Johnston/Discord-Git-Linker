@@ -13,4 +13,6 @@ echo "Finished setting up DB"
 
 ls -lR /app
 # HACK really need to fix this
-chmod 776 /app/data/database.db
+chmod 777 /app/data/database.db
+chmod 777 tmp
+chmod 777 /app/data
