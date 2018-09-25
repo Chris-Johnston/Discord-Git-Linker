@@ -11,6 +11,7 @@ import requests
 import sys
 import time
 import configparser
+import os.path
 
 startTime = time.time()
 
@@ -33,11 +34,20 @@ class GitMonitor:
 
         print(f'using the config file: {config_file} and database file: {database_file}')
 
+        if not os.path.isfile(config_file):
+            print('ERROR: config file does not exist')
+        if not os.path.isfile(database_file):
+            print('ERROR: database file does not exist')
+
         self.auth_database_file = database_file
 
         self.cfg = configparser.ConfigParser()
         with open(config_file) as c:
             self.cfg.read_file(c)
+
+        # debug
+        for section in self.cfg.sections():
+            print(section, dict(self.cfg[section]))
 
         print(f'callback endpoint {self.cfg["Login"]["github_login_callback"]}')
         print(f'redirect endpoint {self.cfg["Login"]["github_login_redirect"]}')
