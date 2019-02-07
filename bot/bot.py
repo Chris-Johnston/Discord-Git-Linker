@@ -7,7 +7,8 @@ import traceback
 import sqlite3
 
 client = commands.Bot(command_prefix='##',
-                          description='A utility bot that connects to your GitHub account and links to connected Repos.')
+                          description='A utility bot that connects to your GitHub account and links to connected Repos.',
+                          case_insensitive=True)
 
 if __name__ == '__main__':
     # use the working directory
