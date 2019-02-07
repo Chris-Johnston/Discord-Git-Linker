@@ -7,6 +7,6 @@ python:
 install:
   - pip install -r requirements.txt
 script:
-  - python3.6 test.py
+  - python test.py
   - touch web/config.ini githublinker.db # create some empty files so that docker compose does not fail
   - docker-compose build # test that the docker image can be built
