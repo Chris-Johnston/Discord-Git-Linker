@@ -256,14 +256,7 @@ class GitMonitor:
             return None
         # return the token for the user
         return result[0]
-        # import configparser
-        #
-        # # read the config file contents
-        # cfg = configparser.ConfigParser()
-        # with open('../config.ini') as c:
-        #     cfg.read_file(c)
-        # return cfg['Debug']['github_auth']
-
+        
     async def on_command_error(self, ctx, error):
         print(f'Command error {error}')
         # do nothing, we are expecting many errors, so fail silently
@@ -302,7 +295,6 @@ class GitMonitor:
         if auth is None:
             # use no token
             # this will be ratelimited and not have access to private repos
-            # print('no auth token, may be rate limited')
             gh = Github()
         else:
             # login with the access token
@@ -318,26 +310,21 @@ class GitMonitor:
             # convert to an int
             num = int(num)
 
-            # print(f'PR/Issue {num}')
-
             try:
                 # get the issue for the repo
                 issue = r.get_issue(num)
 
                 if issue is None:
-                    # print('error')
                     pass
                 else:
                     if issue.pull_request is not None:
                         # pull request
                         pr = issue.as_pull_request()
-                        # print('pull request', pr)
                         if use_embeds:
                             await self.send_pullrequest_embed(issue, pr, message.channel)
                         else:
                             await self.send_pullrequest_message(issue, pr, message.channel)
                     else:
-                        # print('issue', issue)
                         if use_embeds:
                             await self.send_issue_embed(issue, message.channel)
                         else:
@@ -349,11 +336,9 @@ class GitMonitor:
         for y in regex_matches_commit_hash(message.content):
             # trim off the ## leading
             hash = y.group()[2:]
-            # print(f'commit {hash}')
-
+            
             commit = r.get_commit(hash)
             if commit is not None:
-                # print('commit', commit)
                 if use_embeds:
                     await self.send_commit_embed(commit, message.channel)
                 else:
@@ -420,8 +405,6 @@ class GitMonitor:
             url=issue.html_url
         )
 
-        # issue_embed.set_footer(text='Discord Git Linker')
-
         await channel.send(content='', embed=issue_embed)
 
     async def send_pullrequest_embed(self, issue: Issue, pr: PullRequest, channel):
@@ -437,8 +420,6 @@ class GitMonitor:
             description=description,
             url=pr.html_url
         )
-
-        # issue_embed.set_footer(text='Discord Git Linker')
 
         await channel.send(content='', embed=issue_embed)
 
@@ -506,7 +487,6 @@ class GitMonitor:
         :param user_exclusive:
         :return:
         """
-        # print('inserting into guild', guild_id, 'by user', user_id, 'url', repo_url, 'exclusive', user_exclusive)
         user_auth_db = self.db_connect()
         c = user_auth_db.cursor()
 
@@ -542,7 +522,6 @@ class GitMonitor:
         :param repo_url:
         :return:
         """
-        # print('inserting into channel', guild_id, 'by user', user_id, 'url', repo_url, 'channel', channel_id)
         user_auth_db = self.db_connect()
         c = user_auth_db.cursor()
 
@@ -594,7 +573,6 @@ class GitMonitor:
         """
         # works in guild and personal channels
 
-
     @commands.guild_only()
     @commands.check(check_manage_messages_or_admin)
     @commands.bot_has_permissions(send_messages=True)
@@ -641,11 +619,6 @@ class GitMonitor:
         :param repo_url:
         :return:
         """
-
-        # if ctx.guild is None:
-        #     print('only works in a guild, use link me')
-        #     await ctx.send('this only works in guild, use ##link_me instead')
-        #     return
 
         # check to see if the repo url is in the format
         # https://github.com/owner/repo
@@ -794,8 +767,9 @@ def regex_get_repo_name_from_link(message: str) -> re:
 
     >>> regex_get_repo_name_from_link('https://github.com/Chris-Johnston')
 
-    :param message:
-    :return:
+    
+    :param message: the name of the repository, which could be either just the name or a github url
+    :return: the name of the repository
     """
 
     # trim off leading http://github.com or https://github.com
@@ -857,7 +831,7 @@ def regex_matches_pr_or_issue(message: str) -> re:
     :param message: the message to check
     :return:
     """
-    expression = '##\d\d*( |$)'
+    expression = r'##\d\d*( |$)'
     e = re.compile(expression)
     result = e.finditer(message)
     return result
