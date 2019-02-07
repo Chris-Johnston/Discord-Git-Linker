@@ -12,6 +12,6 @@ python3.6 setup_database.py /app/data/database.db
 echo "Finished setting up DB"
 
 ls -lR /app
-chmod 774 -R /app/data
+chmod 777 -R /app/data
 
 echo "done prestart"
