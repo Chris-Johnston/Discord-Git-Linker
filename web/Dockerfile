@@ -12,6 +12,7 @@ COPY ./app /app
 COPY config.ini /app/data/config.ini
 
 # install prereqs
+RUN python -m pip install --upgrade pip
 RUN python -m pip install -r /app/requirements.txt --trusted-host pypi.python.org
 
 # set the environment variables for the config file path and the database path
