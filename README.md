@@ -104,6 +104,7 @@ To force a rebuild, use:
 
 ```console
 docker rmi $(docker images -a -q)
+docker volume rm discord-git-linker_data-volume
 docker-compose up -d --force-recreate --always-recreate-deps --build
 ```
 
