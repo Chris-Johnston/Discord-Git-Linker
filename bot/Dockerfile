@@ -8,6 +8,7 @@ WORKDIR /app/bot
 COPY . /app/bot
 
 # install prereqs
+RUN python -m pip install --upgrade pip
 RUN python -m pip install -r requirements.txt --trusted-host pypi.python.org
 
 # RUN python bot.py config.ini database.db
