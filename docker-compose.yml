@@ -1,13 +1,5 @@
 version: '3'
 services:
-#  setup:
-#    build: ./setup
-#    environment:
-#      - PYTHONUNBUFFERED=1
-#    volumes:
-#      - ./data:/app/data
-#      - ./setup:/app/setup
-
   web:
     build: ./web
     ports:
@@ -16,9 +8,6 @@ services:
       - PYTHONUNBUFFERED=1
     volumes:
       - data-volume:/app/data
-#    depends_on:
-#      - setup
-
   bot:
     build: ./bot
     environment:
