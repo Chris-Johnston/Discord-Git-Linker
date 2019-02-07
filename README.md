@@ -2,6 +2,42 @@
 
 A Discord bot for quickly linking to GitHub PRs/Issues/Commits.
 
+# Guide for Users
+
+Briefly, here's how you use this bot:
+
+1. Add the bot to your server.
+
+2. Send the bot a direct message with the command `##login`.
+
+3. The bot should respond with the following:
+
+![Bot's response to the login command.](img/login-url.png)
+
+**Keep this single-use url safe!** If at any point you wish to revoke access to this application,
+you may revoke access through your GitHub account.
+
+4. Login and authorize the application to have **private repo access** to your GitHub account.
+Priate repo access is requested so that it can work with your private repos.
+
+5. Once you see the confirmation page, go back to your server.
+
+6. Verify that you are logged in with the `##me` command.
+
+![Example of the `##me` command](img/me-command.png)
+
+7. Link a repository to yourself, a channel, or a server:
+
+![Example of linking a channel.](img/link-channel.png)
+
+8. Start referencing Issues, PRs, and commit hashes!
+
+![Issue Preview](img/issue-preview.png)
+
+![Commit Preview](img/commit-preview.png)
+
+Repositories wih CI enabled can show build status in the previews!
+
 # Setup
 
 ## Installation
