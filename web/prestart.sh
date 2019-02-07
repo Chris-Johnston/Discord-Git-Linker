@@ -13,7 +13,7 @@ echo "Finished setting up DB"
 
 ls -lR /app
 
-chmod 770 /app/data/database.db
-chmod 770 /app/data
+chmod 774 /app/data/database.db
+chmod 774 /app/data
 
 echo "done prestart"
