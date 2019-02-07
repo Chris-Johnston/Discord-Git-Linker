@@ -103,5 +103,8 @@ docker-compose up
 To force a rebuild, use:
 
 ```console
+docker rmi $(docker images -a -q)
 docker-compose up -d --force-recreate --always-recreate-deps --build
 ```
+
+This can be necessary if the `config.ini` file changes, which is bundled into the image.
