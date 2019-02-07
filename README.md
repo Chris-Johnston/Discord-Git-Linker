@@ -1,4 +1,4 @@
-# Discord-Git-Linker
+# Discord-Git-Linker [![Build Status](https://travis-ci.org/Chris-Johnston/Discord-Git-Linker.svg?branch=master)](https://travis-ci.org/Chris-Johnston/Discord-Git-Linker)
 
 A Discord bot for quickly linking to GitHub PRs/Issues/Commits.
 
