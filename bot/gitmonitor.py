@@ -158,7 +158,7 @@ class GitMonitor:
             revoke_url = f'https://github.com/settings/connections/applications/{gh_client_id}'
 
             message = f"Here's your unique login url:\n" \
-                      f'\n<{url}>\n\n' \
+                      f'\n||<{url}>||\n\n' \
                       f'**!!! Keep this URL safe !!!**\n' \
                       f'\n' \
                       f'This URL is specifically tied to your Discord account. It will expire in 5 minutes,' \
