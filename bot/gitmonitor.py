@@ -426,30 +426,6 @@ class GitMonitor:
     async def send_pullrequest_message(self, issue: Issue, pr: PullRequest, channel):
         await channel.send(pr.html_url)
 
-    @commands.command()
-    async def authorize(self, ctx, github_token):
-        """
-        Stores the github access token for a user
-        :param github_access_token:
-        :return:
-        """
-        if ctx.guild is not None:
-            await ctx.send("Don't use this command in a server, instead send it as DM to the bot. " +
-                           "You can reset your token here.")
-        else:
-            await ctx.send("Ok I'm storing your token associated with your user. If at any point you wish to revoke" +
-                           " this access, use the ##revoke command, and invalidate your token here.")
-            user_id = ctx.author.id
-            user_auth_db = self.db_connect()
-            cur = user_auth_db.cursor()
-            to_insert = (user_id, github_token)
-            cur.execute('''
-                INSERT OR REPLACE INTO UserGithubAuthorization
-                (DiscordUserId, GithubAuthorizationToken) 
-                VALUES (?, ?);''', to_insert)
-            user_auth_db.commit()
-            user_auth_db.close()
-
     @commands.command(aliases=['logout', 'log-out', 'signout', 'sign-out'])
     @commands.bot_has_permissions(send_messages=True)
     async def revoke(self, ctx):
