@@ -2,6 +2,8 @@
 
 A Discord bot for quickly linking to GitHub PRs/Issues/Commits.
 
+![Example of bot usage.](img/example.png)
+
 # Guide for Users
 
 Briefly, here's how you use this bot:
