@@ -99,3 +99,9 @@ Then start them with:
 ```console
 docker-compose up
 ```
+
+To force a rebuild, use:
+
+```console
+docker-compose up -d --force-recreate --always-recreate-deps --build
+```
